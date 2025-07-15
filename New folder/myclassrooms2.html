@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>my_classroom</title>
+  <style>
+    body {
+      font-family: 'Kanit', sans-serif;
+      background-color: #c4edff;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    header {
+      background-color: #35c8ff;
+      padding: 1rem;
+      font-size: 2rem;
+      font-weight: bold;
+      margin: 1rem;
+    }
+    .search-bar input {
+      width: 60%;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    .button-container {
+      margin: 1rem;
+    }
+    .button {
+      padding: 0.7rem 1.5rem;
+      margin: 0.5rem;
+      font-size: 1rem;
+      border-radius: 10px;
+      border: none;
+      background-color: white;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .classroom-list {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    .classroom {
+      background-color: white;
+      border-radius: 10px;
+      margin: 0.5rem 0;
+      padding: 1rem;
+      text-align: left;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .classroom img {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+    .status {
+      font-weight: bold;
+    }
+    .status.available {
+      color: green;
+    }
+    .status.unavailable {
+      color: red;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 99;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: white;
+      margin: 10% auto;
+      padding: 1.5rem;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 400px;
+      text-align: left;
+    }
+    .modal-content input {
+      width: 100%;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      font-size: 1rem;
+    }
+    .modal-content button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      margin-right: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>my_classroom</header>
+<img src="ing/logo.png" alt="logo" width="20%" height="auto">
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="ค้นหาห้องเรียน..." oninput="filterClassrooms()">
+</div>
+
+<div class="button-container">
+  <button class="button" onclick="showAll()">ห้องเรียนทั้งหมด</button>
+  <button class="button" onclick="showAvailable()">ห้องเรียนว่าง</button>
+</div>
+
+<div class="classroom-list" id="classroomList"></div>
+
+<!-- Modal -->
+<div id="bookingModal" class="modal">
+  <div class="modal-content">
+    <h3>จองห้องเรียน</h3>
+    <input type="text" id="inputName" placeholder="🧑‍💼 ชื่อผู้จอง">
+    <input type="email" id="inputEmail" placeholder="📧 อีเมล">
+    <label>🗓 เวลาเริ่ม</label>
+    <input type="datetime-local" id="inputStart">
+    <label>🗓 เวลาสิ้นสุด</label>
+    <input type="datetime-local" id="inputEnd">
+    <button onclick="confirmBooking()">ยืนยันการจอง</button>
+    <button onclick="closeModal()">ยกเลิก</button>
+  </div>
+</div>
+
+<script>
+  const classrooms = [
+   { name: "ห้องเรียน 222", image: "ing/222-2.jpg", computers: 29, desks: 29, available: true, reserver: null, timeStart: null, timeEnd: null },
+   { name: "ห้องเรียน 223", image: "ing/222-1.jpg", computers: 29, desks: 29, available: true, reserver: null, timeStart: null, timeEnd: null },
+   { name: "ห้องเรียน 226", image: "ing/226.jpg", computers: 19, desks: 32, available: true, reserver: null, timeStart: null, timeEnd: null },
+   { name: "ห้องเรียน 311", image: "ing/311-1.jpg", computers: 25, desks: 26, available: true, reserver: null, timeStart: null, timeEnd: null },
+   { name: "ห้องเรียน 312", image: "ing/312-1.jpg", computers: 36, desks: 37, available: true, reserver: null, timeStart: null, timeEnd: null },
+   { name: "ห้องเรียน 313", image: "ing/313-1.jpg", computers: 38, desks: 38, available: true, reserver: null, timeStart: null, timeEnd: null },
+   { name: "ห้องเรียน 315", image: "ing/315-2.jpg", computers: 24, desks: 28, available: true, reserver: null, timeStart: null, timeEnd: null },
+   { name: "ห้องเรียน อินเตอร์เน็ต 1", image: "ing/int1.jpg", computers: 20, desks: 49, available: true, reserver: null, timeStart: null, timeEnd: null },
+    { name: "ห้องเรียน อินเตอร์เน็ต 3", image: "ing/int3-3.jpg", computers: 0, desks: 30, available: true, reserver: null, timeStart: null, timeEnd: null },
+  ];
+
+   
+  let showOnlyAvailable = false;
+  let selectedRoom = null;
+
+  function displayClassrooms() {
+    const list = document.getElementById("classroomList");
+    const searchText = document.getElementById("searchInput").value.toLowerCase();
+    list.innerHTML = "";
+
+    classrooms.forEach(room => {
+      if ((showOnlyAvailable && !room.available) || !room.name.toLowerCase().includes(searchText)) return;
+
+      const status = room.available ? "ว่าง ✔" : "ไม่ว่าง ✘";
+      const statusClass = room.available ? "available" : "unavailable";
+
+      list.innerHTML += `
+        <div class="classroom">
+          <img src="${room.image || 'ing/default.jpg'}" alt="${room.name}">
+          <h3>${room.name}</h3>
+          <p>🖥 ${room.computers} เครื่อง | 🪑 ${room.desks} โต๊ะ</p>
+          <p class="status ${statusClass}">${status}</p>
+          ${
+            room.available
+              ? `<button onclick="bookRoom('${room.name}')">จองห้องนี้</button>`
+              : `<p>จองโดย: ${room.reserver || 'ไม่ทราบ'}<br/>
+                   เวลา: ${formatDate(room.timeStart)} - ${formatDate(room.timeEnd)}<br/>
+                   <button onclick="cancelBooking('${room.name}')">ยกเลิกการจอง</button></p>`
+          }
+        </div>
+      `;
+    });
+  }
+
+  function showAll() {
+    showOnlyAvailable = false;
+    displayClassrooms();
+  }
+
+  function showAvailable() {
+    showOnlyAvailable = true;
+    displayClassrooms();
+  }
+
+  function filterClassrooms() {
+    displayClassrooms();
+  }
+
+  function bookRoom(roomName) {
+    selectedRoom = roomName;
+    document.getElementById("inputName").value = "";
+    document.getElementById("inputEmail").value = "";
+    document.getElementById("inputStart").value = "";
+    document.getElementById("inputEnd").value = "";
+    document.getElementById("bookingModal").style.display = "block";
+  }
+
+  function closeModal() {
+    document.getElementById("bookingModal").style.display = "none";
+  }
+
+  function confirmBooking() {
+    const name = document.getElementById("inputName").value;
+    const email = document.getElementById("inputEmail").value;
+    const timeStart = document.getElementById("inputStart").value;
+    const timeEnd = document.getElementById("inputEnd").value;
+
+    if (!name || !email || !timeStart || !timeEnd) {
+      alert("กรุณากรอกข้อมูลให้ครบ");
+      return;
+    }
+
+    const room = classrooms.find(r => r.name === selectedRoom);
+    if (room && room.available) {
+      room.available = false;
+      room.reserver = `${name} (${email})`;
+      room.timeStart = timeStart;
+      room.timeEnd = timeEnd;
+      closeModal();
+      displayClassrooms();
+    }
+  }
+
+  function cancelBooking(roomName) {
+    const room = classrooms.find(r => r.name === roomName);
+    if (room && confirm("คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการจองห้องนี้?")) {
+      room.available = true;
+      room.reserver = null;
+      room.timeStart = null;
+      room.timeEnd = null;
+      displayClassrooms();
+    }
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return d.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+  }
+
+  window.onload = displayClassrooms;
+</script>
+
+</body>
+</html>
